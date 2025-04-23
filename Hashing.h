@@ -25,6 +25,7 @@ class Hashing{
 };
 
 Hashing::Hashing(){
+    //just declaring a bunch of variables
     ifstream inputText("A Scandal In Bohemia.txt");
     char filler[100];
     int numWords = 0;
@@ -35,9 +36,10 @@ Hashing::Hashing(){
     char currentChar = ' ';
     bool stringPlaced = false;
 
+    //when file reads in this string it will then switch from chainging to linear probing
     string stopString = "VII.";
 
-    
+    //allocating memory for the chainArray
     chainArray = new ResizingArray<string> *[100];
     for(int i = 0; i < 100; i++){
         chainArray[i] = new ResizingArray<string>;
