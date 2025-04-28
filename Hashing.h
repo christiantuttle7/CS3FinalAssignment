@@ -24,7 +24,8 @@ class Hashing{
 
 };
 
-Hashing::Hashing(){
+Hashing::Hashing()
+{
     //just declaring a bunch of variables
     ifstream inputText("A Scandal In Bohemia.txt");
     char filler[100];
