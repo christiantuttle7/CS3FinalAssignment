@@ -9,7 +9,8 @@ int main(){
     
    
    Hashing Object;
-   cout << "Cool" << endl;
+   Object.testHashFunctions();
+
 
    return 0;
    
