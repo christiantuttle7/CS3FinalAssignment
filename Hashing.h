@@ -24,12 +24,15 @@ class Hashing{
 
         //test multiple hash functions
         void testHashFunctions();
+        void testChaining();
+        void testProbing();
 
-
+    
         void doesWordOccur(string);
         void OccupancyRatioExperiments();
         void ReoccuringWords();
-        int readInFile(int);
+        int  readInFile(int);
+        int readInFileProbing(int);
 
         //This will take in a word and remove the punctuation as well as lowercase everything
         //We can then push it to the linear probing or chaining array
@@ -38,7 +41,7 @@ class Hashing{
         //help us calculate hash values
         int calculateSimpleHashValue(char[], int);
         int calculateBetterHashValue(char[], int);
-        int calculateComplicatedHashValue(char[], int);
+        int calculateCubedHashValue(char[], int);
         //add more
 
 };
@@ -73,7 +76,7 @@ int Hashing::calculateSimpleHashValue(char wordToCompute[], int modNum){
 
 int Hashing::calculateBetterHashValue(char wordToCompute[], int modNum){
     unsigned long long hashValue = 0;
-    int prime = 31;
+    int prime = 2431;
     int length = strlen(wordToCompute);
 
     for (int i = 0; i < length; i++) {
@@ -85,18 +88,26 @@ int Hashing::calculateBetterHashValue(char wordToCompute[], int modNum){
     return static_cast<int>(hashValue);
 }
 
-int Hashing::calculateComplicatedHashValue(char wordToCompute[], int modNum){
-    return modNum;
+int Hashing::calculateCubedHashValue(char wordToCompute[], int modNum){
+    int stringLength = strlen(wordToCompute);
+        long long int stringValue = 0;
+        
+        
+        for(int i = 0; i < stringLength; i++){
+            stringValue += wordToCompute[i];
+        }
+        int hashValue = (stringValue * stringValue * stringValue ) % modNum;
+        return hashValue;
 }
 
 void Hashing::simplifyWord(char* wordToSimplify){
-    int length = strlen(wordToSimplify);
-    for(int i = 0; i < length; i++){
-        wordToSimplify[i] = tolower(wordToSimplify[i]);
+    int currentValue = 0;
+    for(int i = 0; wordToSimplify[i] != '\0'; ++i){
+        if(isalpha(wordToSimplify[i])){
+            wordToSimplify[currentValue++] = tolower(wordToSimplify[i]);
+        }
     }
-    if(ispunct(wordToSimplify[length-1])){
-        wordToSimplify[length-1] = '\0';
-    }
+    wordToSimplify[currentValue] = '\0'; 
 }
 
 
@@ -144,10 +155,7 @@ Hashing::Hashing(){
 
         chainArray[hashValue]->Push(word);
     }
-    //cout << endl;
-
-    //cout << numWords << endl;
-
+    
 
     
 
@@ -175,7 +183,7 @@ Hashing::Hashing(){
     cout << "Number of words: " << numWords << endl;
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
-    cout << "Initial Read in took: " << duration.count() << "milliseconds" <<  endl;
+    cout << "Initial Read in took: " << duration.count() << " milliseconds" <<  endl;
 
 
     inputText.close();
@@ -193,6 +201,49 @@ Hashing::~Hashing(){
         delete linProbingArray[i];
     }
     delete [] linProbingArray;
+}
+
+
+void testProbing(){
+
+}
+
+
+
+int Hashing::readInFileProbing(int probeArraySize){
+
+    ifstream inputText("A Scandal In Bohemia.txt");
+    char word[50];
+    
+    int hashValue = 0;
+    bool stringPlaced = false;
+
+    string ** tempLinProbingArray = new string*[probeArraySize];
+    for(int i = 0; i < probeArraySize; i++){
+        tempLinProbingArray[i] = nullptr;
+    }
+
+
+    while(inputText >> word){
+        
+        
+        char *ptrToPass = word;
+        simplifyWord(ptrToPass);
+        calculateCubedHashValue(word, probeArraySize);
+        stringPlaced = false;
+        while(!stringPlaced){
+            if(tempLinProbingArray[hashValue] == nullptr){
+                tempLinProbingArray[hashValue] = new string(word);
+                stringPlaced = true;
+            }
+            else{
+                if(hashValue == 80000)
+                    hashValue = 0;
+                else hashValue++;
+            }
+        }
+        
+    }
 }
 
 
@@ -224,7 +275,6 @@ int Hashing::readInFile(int hashFunctionType){
     string ** tempLinProbingArray = new string*[80000];
     for(int i = 0; i < 80000; i++){
         tempLinProbingArray[i] = nullptr;
-        
     }
 
 
@@ -242,7 +292,7 @@ int Hashing::readInFile(int hashFunctionType){
         simplifyWord(ptrToPass);
         if(hashFunctionType == 1) hashValue = calculateSimpleHashValue(word, 101);
         else if(hashFunctionType == 2) hashValue = calculateBetterHashValue(word, 101);
-        else hashValue = calculateComplicatedHashValue(word, 101);
+        else hashValue = calculateCubedHashValue(word, 101);
 
         tempChainArray[hashValue]->Push(word);
     }
@@ -261,7 +311,7 @@ int Hashing::readInFile(int hashFunctionType){
         simplifyWord(ptrToPass);
         if(hashFunctionType == 1) hashValue = calculateSimpleHashValue(word, 80000);
         else if(hashFunctionType == 2) hashValue = calculateBetterHashValue(word, 80000);
-        else hashValue = calculateComplicatedHashValue(word, 80000);
+        else hashValue = calculateCubedHashValue(word, 80000);
         stringPlaced = false;
         while(!stringPlaced){
             if(tempLinProbingArray[hashValue] == nullptr){
@@ -299,6 +349,7 @@ void Hashing::testHashFunctions(){
 
     cout << "Hash Function 1 took: " << readInFile(1) << " milliseconds" << endl;
     cout << "Hash Function 2 took: " << readInFile(2) << " milliseconds" << endl;
+    cout << "Hash Function 3 took: " << readInFile(3) << " milliseconds" << endl;
     
 }
 
