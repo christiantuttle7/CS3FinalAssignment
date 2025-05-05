@@ -302,6 +302,19 @@ void Hashing::testHashFunctions(){
     
 }
 
+int prompt_User()
+{
+    string userInput;
 
+    cout << "What Word are you trying to find?" << endl;
+    cin >> userInput;
+
+    for (int i = 0; i < 8000; i ++)
+    {
+        
+    }
+
+    
+}
 
 #endif
