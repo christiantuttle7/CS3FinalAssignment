@@ -357,10 +357,10 @@ int prompt_User()
 {
     string userInput;
 
-    cout << "What Word are you trying to find?" << endl;
+    cout << "What Word are you trying to find in (The Adventure of the Engineer's Thumb) " << endl;
     cin >> userInput;
 
-    for (int i = 0; i < 8000; i ++)
+    for (int i = 0; i < 80000; i ++)
     {
         
     }
