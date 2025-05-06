@@ -7,11 +7,13 @@ using namespace std;
 
 int main(){
     
-   //char test1[50] = "\"Great\"!!";
-   //char test2[50] = "NicE;";
-  // char test3[50] = ".COOL..,;";
+
    Hashing Object;
-   Object.testHashFunctions();
+   //Object.testHashFunctions();
+   //Object.testProbing();
+   //Object.testChaining();
+   Object.findOccurences();
+   
 
    /*
    char *ptrToPass = test1;
