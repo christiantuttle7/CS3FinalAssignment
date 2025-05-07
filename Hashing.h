@@ -10,401 +10,491 @@
 using namespace std;
 using namespace std::chrono;
 
-
-struct wordNode{
+struct wordNode
+{
     string word = " ";
     int occurence = 0;
 };
 
+class Hashing
+{
 
-class Hashing{
+private:
+    // chaining array and linear probing arrays
+    ResizingArray<string> **chainArray;
+    string **linProbingArray;
 
-    private:
-        ResizingArray<string>** chainArray;
-        string** linProbingArray;
-        wordNode** sortedOccurences;
-        int probingArraySize;
-        int chainArraySize;
-        int hashFunctionType;
-        int numWords;
-        int uniqueSize;
+    // these two keep track of occurences of every word
+    wordNode **sortedOccurences;
+    wordNode **occurences;
 
+    // these tell us what hash function, load factor, probing occupany to use (good for experimenting)
+    int probingArraySize;
+    int chainArraySize;
+    int hashFunctionType;
+
+    // Keep track of runtimes,and number of words, sentences, etc
+    int numWords;
+    int uniqueSize;
+    int readInTime;
+    int readInTimeChaining;
+    int readInTimeProbing;
+    int findOccurencesTime;
+    int sortOccurencesTime;
+    int numSentences;
+
+public:
+    Hashing();
+    ~Hashing();
 
     
-    public:
-        Hashing();
-        ~Hashing();
 
-        //test multiple hash functions
-        void testHashFunctions();
-        void testChaining();
-        void testProbing();
+    // This will take in a word and remove the punctuation as well as lowercase everything
+    // We can then calculate hash function push it to the linear probing or chaining array
+    bool simplifyWord(char *);
 
-    
-        void doesWordOccur(string);
-        void OccupancyRatioExperiments();
-        void ReoccuringWords();
-        int  readInFile(int);
-        int readInFileProbing(int);
-        int readInFileChaining(int);
+    // hash functions (only one can be chosen each run)
+    int calculateSimpleHashValue(char[], int);
+    int calculateBetterHashValue(char[], int);
+    int calculateCubedHashValue(char[], int);
 
-        //This will take in a word and remove the punctuation as well as lowercase everything
-        //We can then push it to the linear probing or chaining array
-        void simplifyWord(char*);
-
-        //help us calculate hash values
-        int calculateSimpleHashValue(char[], int);
-        int calculateBetterHashValue(char[], int);
-        int calculateCubedHashValue(char[], int);
-        //add more
-
-        void findOccurences();
-        void printTopEighty();
-        void printBottomEighty();
-
-
-        int promptUser();
-
+    // other functions
+    void findOccurences();
+    void printTopEighty();
+    void printBottomEighty();
+    int promptUser();
+    void doesWordOccur(string);
+    void printReport();
+    void printNumSentences();
 };
 
+void Hashing::printNumSentences()
+{
+    cout << "Number of sentences: " << numSentences << endl;
+}
 
-//unfinished
-void Hashing::doesWordOccur(string wordToFind){
+// unfinished
+void Hashing::doesWordOccur(string wordToFind)
+{
     int occurences = 0;
 
-    for(int i = 0; i < 80000; i++){
-        if(linProbingArray[i] != nullptr && *linProbingArray[i] == wordToFind){
+    for (int i = 0; i < 80000; i++)
+    {
+        if (linProbingArray[i] != nullptr && *linProbingArray[i] == wordToFind)
+        {
             occurences++;
         }
     }
     cout << "Word Occurs " << occurences << " times" << endl;
 }
 
+int Hashing::calculateSimpleHashValue(char wordToCompute[], int modNum)
+{
 
+    int stringLength = strlen(wordToCompute);
+    int stringValue = 0;
+    char currentChar;
 
-
-
-int Hashing::calculateSimpleHashValue(char wordToCompute[], int modNum){
-    
-        int stringLength = strlen(wordToCompute);
-        int stringValue = 0;
-        char currentChar;
-        
-        for(int i = 0; i < stringLength; i++){
-            currentChar = wordToCompute[i];
-            stringValue += currentChar;
-
-        }
-        int hashValue = stringValue % modNum;
-        return hashValue;
-    
-   
+    for (int i = 0; i < stringLength; i++)
+    {
+        currentChar = wordToCompute[i];
+        stringValue += currentChar;
+    }
+    int hashValue = stringValue % modNum;
+    return hashValue;
 }
 
-int Hashing::calculateBetterHashValue(char wordToCompute[], int modNum){
+int Hashing::calculateBetterHashValue(char wordToCompute[], int modNum)
+{
     unsigned long long hashValue = 0;
     int prime = 2431;
     int length = strlen(wordToCompute);
 
-    for (int i = 0; i < length; i++) {
+    for (int i = 0; i < length; i++)
+    {
         int charValue = tolower(wordToCompute[i]);
-        hashValue = (hashValue * prime + charValue) % modNum;
+        hashValue = (hashValue * prime + charValue);
     }
+    hashValue = hashValue % modNum;
 
-    
-    return static_cast<int>(hashValue);
+    return hashValue;
 }
 
-int Hashing::calculateCubedHashValue(char wordToCompute[], int modNum){
+int Hashing::calculateCubedHashValue(char wordToCompute[], int modNum)
+{
     int stringLength = strlen(wordToCompute);
-        long long int stringValue = 0;
-        
-        
-        for(int i = 0; i < stringLength; i++){
-            stringValue += wordToCompute[i];
-        }
-        int hashValue = (stringValue * stringValue * stringValue ) % modNum;
-        return hashValue;
+    long long int stringValue = 0;
+
+    for (int i = 0; i < stringLength; i++)
+    {
+        stringValue += wordToCompute[i];
+    }
+    int hashValue = (stringValue * stringValue * stringValue) % modNum;
+    return hashValue;
 }
 
-void Hashing::simplifyWord(char* wordToSimplify){
+bool Hashing::simplifyWord(char *wordToSimplify)
+{
     int currentValue = 0;
-    for(int i = 0; wordToSimplify[i] != '\0'; ++i){
-        if(isalpha(wordToSimplify[i])){
+    bool isSentence= false;
+    char currentChar;
+    for (int i = 0; wordToSimplify[i] != '\0'; ++i)
+    {
+        currentChar = wordToSimplify[i];
+        if (isalpha(currentChar) || (currentChar == '-' && (wordToSimplify[i-1] != '-' && wordToSimplify[i+1] != '-')))
+        {
             wordToSimplify[currentValue++] = tolower(wordToSimplify[i]);
         }
+        if (currentChar == '.' || currentChar == '!' || currentChar == '?')  isSentence = true;
     }
-    wordToSimplify[currentValue] = '\0'; 
+    wordToSimplify[currentValue] = '\0';
+
+    return isSentence;
 }
 
-
-
-Hashing::Hashing(){
-    //just declaring a bunch of variables
+Hashing::Hashing()
+{
+    // just declaring a bunch of variables
     ifstream inputText("A Scandal In Bohemia.txt");
     char word[50];
     numWords = 0;
-    //char inputWordOne[50];
-    //char inputWordTwo[50];
-    //char inputWordThree[50];
-    //int inputHashOne, inputHashTwo, inputHashThree;;
+    numSentences = 0;
+
     int hashValue = 0;
     bool stringPlaced = false;
 
-    //when file reads in this string it will then switch from chaining to linear probing
+    // when file reads in this string it will then switch from chaining to linear probing
     string stopString = "VII.";
     string stopStringTwo = "IX.";
 
-    hashFunctionType = 3;
-    chainArraySize = 1001;
-    probingArraySize = 320000;
+    hashFunctionType = 2;
+    chainArraySize = 10000;
+    probingArraySize = 160000;
 
-
-
-    //allocating memory for the chainArray
+    // allocating memory for the chainArray
     chainArray = new ResizingArray<string> *[chainArraySize];
-    for(int i = 0; i < chainArraySize; i++){
+    for (int i = 0; i < chainArraySize; i++)
+    {
         chainArray[i] = new ResizingArray<string>;
     }
 
-    //allocating space for linear probing
-    linProbingArray = new string*[probingArraySize];
-    for(int i = 0; i < probingArraySize; i++){
+    // allocating space for linear probing
+    linProbingArray = new string *[probingArraySize];
+    for (int i = 0; i < probingArraySize; i++)
+    {
         linProbingArray[i] = nullptr;
-        
     }
 
+    // starting timer for reading in all works
+    auto startOne = high_resolution_clock::now();
 
-
-    //starting timer
-    auto start = high_resolution_clock::now();
-
-    //going through works 1-6, and storing it using chaining
-    while(inputText >> word){
-        if(word == stopString) break;
+    // going through works 1-6, and storing it using chaining
+    while (inputText >> word)
+    {
+        if (word == stopString)
+            break;
         
+
         numWords++;
-        
-        
-        char *ptrToPass = word;
-        simplifyWord(ptrToPass);
-        if(hashFunctionType == 1)hashValue = calculateSimpleHashValue(word, chainArraySize);
-        else if(hashFunctionType == 2) hashValue = calculateBetterHashValue(word, chainArraySize);
-        else hashValue = calculateCubedHashValue(word, chainArraySize);
-        
 
-        
+        if(simplifyWord(word)) numSentences++;
+        if (hashFunctionType == 1)
+            hashValue = calculateSimpleHashValue(word, chainArraySize);
+        else if (hashFunctionType == 2)
+            hashValue = calculateBetterHashValue(word, chainArraySize);
+        else
+            hashValue = calculateCubedHashValue(word, chainArraySize);
 
         chainArray[hashValue]->Push(word);
     }
 
-    //cant forget to process "VII."
-    if(hashFunctionType == 1)hashValue = calculateSimpleHashValue(word, chainArraySize);
-    else if(hashFunctionType == 2) hashValue = calculateBetterHashValue(word, chainArraySize);
-    else hashValue = calculateCubedHashValue(word, chainArraySize);
+    // stopping timer that keeps track of Works I -VI read in time
+    auto stopTwo = high_resolution_clock::now();
+    auto durationChaining = duration_cast<milliseconds>(stopTwo - startOne);
 
-    
+    readInTimeChaining = durationChaining.count();
 
-    
+    // cant forget to process "VII." in linear probing
+    simplifyWord(word);
+    if (hashFunctionType == 1)
+        hashValue = calculateSimpleHashValue(word, chainArraySize);
+    else if (hashFunctionType == 2)
+        hashValue = calculateBetterHashValue(word, chainArraySize);
+    else
+        hashValue = calculateCubedHashValue(word, chainArraySize);
+    stringPlaced = false;
+    while (!stringPlaced)
+    {
+        if (linProbingArray[hashValue] == nullptr)
+        {
+            linProbingArray[hashValue] = new string(word);
+            stringPlaced = true;
+        }
+        else
+        {
 
-    //goes through works 7-12 and stores using linear probing
-    while(inputText >> word){
-        //if(word == stopStringTwo) break;
-        numWords++;
-        char *ptrToPass = word;
-        simplifyWord(ptrToPass);
-        if(hashFunctionType == 1)hashValue = calculateSimpleHashValue(word, chainArraySize);
-        else if(hashFunctionType == 2) hashValue = calculateBetterHashValue(word, chainArraySize);
-        else hashValue = calculateCubedHashValue(word, chainArraySize);
+            hashValue = (hashValue + 1) % probingArraySize;
+        }
+    }
+    numWords++;
+
+    // goes through works 7-12 and stores using linear probing
+    while (inputText >> word)
+    {
         
+        numWords++;
+        if(simplifyWord(word)) numSentences++;
+        if (hashFunctionType == 1)
+            hashValue = calculateSimpleHashValue(word, probingArraySize);
+        else if (hashFunctionType == 2)
+            hashValue = calculateBetterHashValue(word, probingArraySize);
+        else
+            hashValue = calculateCubedHashValue(word, probingArraySize);
 
         stringPlaced = false;
-        while(!stringPlaced){
-            if(linProbingArray[hashValue] == nullptr){
+        while (!stringPlaced)
+        {
+            if (linProbingArray[hashValue] == nullptr)
+            {
                 linProbingArray[hashValue] = new string(word);
                 stringPlaced = true;
             }
-            else{
-                if(hashValue == probingArraySize - 1)
-                    hashValue = 0;
-                else hashValue++;
+            else
+            {
+
+                hashValue = (hashValue + 1) % probingArraySize;
             }
         }
-        
+        // cout << word << hashValue << endl;
+    }
+
+    /*
+
+    int numberOfInputs  = 0;
+    char inputArray[8][50];
+    cout << "Enter up to 8 keys: " << endl;
+    for(int i = 0; i < 8; i++){
+        cin >> inputArray[i];
+        if(inputArray[i][0] == '@' && inputArray[i][1] == '@' && inputArray[i][2] == '@') break;
+    }
+
+    //going over work IX
+    char currentChar;
+    int numChars = 0;
+    int currentCharNum;
+    word[0] = '\0';
+
+    while(inputText.get(currentChar)){
+        cout << "Hello" << endl;
     }
 
 
+    */
 
-
-    cout << "Number of words: " << numWords << endl;
-    auto stop = high_resolution_clock::now();
-    auto duration = duration_cast<milliseconds>(stop - start);
-    cout << "Initial Read in took: " << duration.count() << " milliseconds" <<  endl;
-
+    // cout << "Number of words: " << numWords << endl;
+    auto stopOne = high_resolution_clock::now();
+    auto durationOne = duration_cast<milliseconds>(stopOne - startOne);
+    cout << "Initial Read in took: " << durationOne.count() << " milliseconds" << endl;
+    readInTime = durationOne.count();
+    findOccurences();
 
     inputText.close();
-
 }
 
-Hashing::~Hashing(){
-    //de allocating memory
-    for(int i = 0; i < chainArraySize; i++){
+Hashing::~Hashing()
+{
+    // de allocating memory
+    for (int i = 0; i < chainArraySize; i++)
+    {
         delete chainArray[i];
     }
-    delete [] chainArray;
+    delete[] chainArray;
 
-    for(int i = 0; i < probingArraySize; i++){
+    for (int i = 0; i < probingArraySize; i++)
+    {
         delete linProbingArray[i];
     }
-    delete [] linProbingArray;
+
+    for (int i = 0; i < numWords; i++)
+    {
+        delete occurences[i];
+    }
+    delete[] occurences;
+    delete[] linProbingArray;
     delete[] sortedOccurences;
 }
 
-
-
-void Hashing::findOccurences() {
+void Hashing::findOccurences()
+{
+    const int TABLE_SIZE = 131071; // large prime number
     string currentWord;
     char currentWordC[50];
     bool wordPlaced = false;
     int hashValue;
+
+    // Allocate new occurrence table
+    occurences = new wordNode *[TABLE_SIZE]();
     uniqueSize = 0;
 
-    // Create array to track word occurrences
-    wordNode** occurences = new wordNode*[numWords]();
-    
-    // Start timer
     auto start = high_resolution_clock::now();
 
-    // Chaining Array 
-    for (int i = 0; i < chainArraySize; i++) {
+    // Process chaining array
+    for (int i = 0; i < chainArraySize; i++)
+    {
         int currentChainSize = chainArray[i]->getSize();
-        for (int j = 0; j < currentChainSize; j++) {
+        for (int j = 0; j < currentChainSize; j++)
+        {
             currentWord = chainArray[i]->getValue(j);
             strcpy(currentWordC, currentWord.c_str());
 
-            // Compute hash
+            // Hash using fixed size
             if (hashFunctionType == 1)
-                hashValue = calculateSimpleHashValue(currentWordC, numWords);
+                hashValue = calculateSimpleHashValue(currentWordC, TABLE_SIZE);
             else if (hashFunctionType == 2)
-                hashValue = calculateBetterHashValue(currentWordC, numWords);
+                hashValue = calculateBetterHashValue(currentWordC, TABLE_SIZE);
             else
-                hashValue = calculateCubedHashValue(currentWordC, numWords);
+                hashValue = calculateCubedHashValue(currentWordC, TABLE_SIZE);
 
-            // Insert or update occurrence
+            // Insert or update
             wordPlaced = false;
-            while (!wordPlaced) {
-                if (occurences[hashValue] == nullptr) {
-                    occurences[hashValue] = new wordNode{currentWordC, 1};
+            int startIdx = hashValue;
+            while (!wordPlaced)
+            {
+                if (occurences[hashValue] == nullptr)
+                {
+                    occurences[hashValue] = new wordNode{currentWord, 1};
                     uniqueSize++;
                     wordPlaced = true;
-                } else if (occurences[hashValue]->word == currentWord) {
+                }
+                else if (occurences[hashValue]->word == currentWord)
+                {
                     occurences[hashValue]->occurence++;
                     wordPlaced = true;
-                } else {
-                    hashValue = (hashValue + 1) % numWords;
+                }
+                else
+                {
+                    hashValue = (hashValue + 1) % TABLE_SIZE;
+                    if (hashValue == startIdx)
+                        break; // avoid infinite loop
                 }
             }
         }
     }
 
-    // probing array
-    for (int i = 0; i < probingArraySize; i++) {
+    // Process linear probing array
+    for (int i = 0; i < probingArraySize; i++)
+    {
         if (linProbingArray[i] == nullptr)
             continue;
 
         currentWord = *linProbingArray[i];
         strcpy(currentWordC, currentWord.c_str());
 
-        // Compute hash
         if (hashFunctionType == 1)
-            hashValue = calculateSimpleHashValue(currentWordC, numWords);
+            hashValue = calculateSimpleHashValue(currentWordC, TABLE_SIZE);
         else if (hashFunctionType == 2)
-            hashValue = calculateBetterHashValue(currentWordC, numWords);
+            hashValue = calculateBetterHashValue(currentWordC, TABLE_SIZE);
         else
-            hashValue = calculateCubedHashValue(currentWordC, numWords);
+            hashValue = calculateCubedHashValue(currentWordC, TABLE_SIZE);
 
-        // Insert or update occurrence
+        // Insert or update
         wordPlaced = false;
-        while (!wordPlaced) {
-            if (occurences[hashValue] == nullptr) {
-                occurences[hashValue] = new wordNode{currentWordC, 1};
+        int startIdx = hashValue;
+        while (!wordPlaced)
+        {
+            if (occurences[hashValue] == nullptr)
+            {
+                occurences[hashValue] = new wordNode{currentWord, 1};
                 uniqueSize++;
                 wordPlaced = true;
-            } else if (occurences[hashValue]->word == currentWord) {
+            }
+            else if (occurences[hashValue]->word == currentWord)
+            {
                 occurences[hashValue]->occurence++;
                 wordPlaced = true;
-            } else {
-                hashValue = (hashValue + 1) % numWords;
+            }
+            else
+            {
+                hashValue = (hashValue + 1) % TABLE_SIZE;
+                if (hashValue == startIdx)
+                    break;
             }
         }
     }
-
-    // Stop timer
+    //finding time it took to find all occurences
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
-
-    
     cout << "Occurences took: " << duration.count() << " milliseconds" << endl;
+    findOccurencesTime = duration.count();
 
 
-    //cleaning out the null Values into new array
-    sortedOccurences = new wordNode*[uniqueSize];
-    int indexSorted = 0;
-    for (int i = 0; i < numWords; i++) {
-        if (occurences[i] != nullptr) {
-            sortedOccurences[indexSorted] = occurences[i];
-            indexSorted++;
+    start = high_resolution_clock::now();
+
+    // Extract and sort unique entries
+    sortedOccurences = new wordNode *[uniqueSize];
+    int idx = 0;
+    for (int i = 0; i < TABLE_SIZE; i++)
+    {
+        if (occurences[i] != nullptr)
+        {
+            sortedOccurences[idx++] = occurences[i];
         }
     }
 
-    
-    for (int i = 0; i < uniqueSize - 1; i++) {
+    // Selection sort (ascending)
+    for (int i = 0; i < uniqueSize - 1; i++)
+    {
         int minIdx = i;
-        for (int j = i + 1; j < uniqueSize; j++) {
-            if (sortedOccurences[j]->occurence < sortedOccurences[minIdx]->occurence) {
+        for (int j = i + 1; j < uniqueSize; j++)
+        {
+            if (sortedOccurences[j]->occurence < sortedOccurences[minIdx]->occurence)
+            {
                 minIdx = j;
             }
         }
-        if (minIdx != i) {
-            wordNode* temp = sortedOccurences[i];
+        if (minIdx != i)
+        {
+            wordNode *temp = sortedOccurences[i];
             sortedOccurences[i] = sortedOccurences[minIdx];
             sortedOccurences[minIdx] = temp;
         }
     }
 
+
+
+
+    //finding time it took to sort the occurences
+    stop = high_resolution_clock::now();
+    duration = duration_cast<milliseconds>(stop - start);
+    cout << "Occurences took: " << duration.count() << " milliseconds" << endl;
+    sortOccurencesTime = duration.count();
+
+    cout << "Unique words: " << uniqueSize << endl;
     
-    cout << uniqueSize << endl;
-
-    printTopEighty();
-    printBottomEighty();
-
-
-    
-
-
-    for (int i = 0; i < numWords; i++) {
-        delete occurences[i];
-    }
-    delete[] occurences;
 }
 
-void Hashing::printTopEighty(){
+void Hashing::printTopEighty()
+{
     ofstream outputTop80("top80.txt");
     
-    for(int i = uniqueSize - 1; i >= uniqueSize - 80; i--) {
+    outputTop80 << "80 Top Occuring Words: " << endl;
+    for (int i = uniqueSize - 1; i >= uniqueSize - 80; i--)
+    {
         outputTop80 << sortedOccurences[i]->word << " - " << sortedOccurences[i]->occurence << endl;
     }
+    cout << "Top 80 most occuring words have been printed to \"top80.txt\"" << endl;
 }
 
-
-void Hashing::printBottomEighty(){
+void Hashing::printBottomEighty()
+{
     ofstream outputBottom80("bottom80.txt");
-    
-    for(int i = 0; i < uniqueSize; i++) {
+
+    for (int i = 0; i < uniqueSize; i++)
+    {
         outputBottom80 << sortedOccurences[i]->word << " - " << sortedOccurences[i]->occurence << endl;
     }
+    cout << "Bottom 80 most occuring words have been printed to \"top80.txt\"" << endl;
 }
-
 
 int Hashing::promptUser()
 {
@@ -413,271 +503,25 @@ int Hashing::promptUser()
     cout << "What Word are you trying to find in (The Adventure of the Engineer's Thumb) " << endl;
     cin >> userInput;
 
-    for (int i = 0; i < 80000; i ++)
+    for (int i = 0; i < 80000; i++)
     {
         continue;
     }
 
     return 0;
-
-    
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-void Hashing::testProbing(){
-    //cout << "Linear Probing Test 1(320000): " << readInFileProbing(320000) << " Milliseconds";
-    cout << "Linear Probing Test 1(160000): " << readInFileProbing(160000) << " Milliseconds" << endl;
-    cout << "Linear Probing Test 3(320000): " << readInFileProbing(320000) << " Milliseconds" << endl;
-    cout << "Linear Probing Test 3(240000): " << readInFileProbing(240000) << " Milliseconds" << endl;
-
-    
-
+void Hashing::printReport()
+{   
+    cout << "\nHASHING REPORT - All Times in Milliseconds\n";
+    cout << "-------------------------------------------\n";
+    cout << "Number of Words:              " << numWords << "\n";
+    cout << "Number of Sentences:          " << numSentences << "\n";
+    cout << "Overall Read-In Time:         " << readInTime << "\n";
+    cout << "Works I-VI Read-In Time:      " << readInTimeChaining << "\n";
+    cout << "Works VII-IX Read-In Time:    " << readInTimeProbing << "\n";
+    cout << "Time to Find Occurrences:     " << findOccurencesTime << "\n";
+    cout << "Time to Sort Occurrences:     " << sortOccurencesTime << "\n\n";
 }
-
-void Hashing::testChaining(){
-    cout << "Chaining Test 1(100): " << readInFileChaining(100) << " Milliseconds" << endl;
-    cout << "Chaining Test 2(500): " << readInFileChaining(500) << " Milliseconds" << endl;
-    cout << "Chaining Test 3(1000): " << readInFileChaining(1000) << " Milliseconds" << endl;
-}
-
-
-
-int Hashing::readInFileProbing(int probeArraySize){
-
-    //starting timer
-    auto start = high_resolution_clock::now();
-
-    ifstream inputText("A Scandal In Bohemia.txt");
-    char word[50];
-    
-    int hashValue = 0;
-    bool stringPlaced = false;
-
-    string ** tempLinProbingArray = new string*[probeArraySize];
-    for(int i = 0; i < probeArraySize; i++){
-        tempLinProbingArray[i] = nullptr;
-    }
-
-
-    while(inputText >> word){
-        
-        char *ptrToPass = word;
-        simplifyWord(ptrToPass);
-        hashValue = calculateCubedHashValue(word, probeArraySize);
-        stringPlaced = false;
-        while(!stringPlaced){
-            if(tempLinProbingArray[hashValue] == nullptr){
-                tempLinProbingArray[hashValue] = new string(word);
-                stringPlaced = true;
-            }
-            else{
-                if(hashValue == probeArraySize-1)
-                    hashValue = 0;
-                else hashValue++;
-            }
-        }
-        
-    }
-    
-
-    auto stop = high_resolution_clock::now();
-    auto duration = duration_cast<milliseconds>(stop - start);
-    inputText.close();
-
-    for(int i = 0; i < probeArraySize; i++){
-        delete tempLinProbingArray[i];
-    }
-    delete [] tempLinProbingArray;
-
-    return duration.count();
-}
-
-int Hashing::readInFileChaining(int chainArraySize){
-    //starting timer
-    auto start = high_resolution_clock::now();
-
-    ifstream inputText("A Scandal In Bohemia.txt");
-    char word[50];
-    
-    int hashValue = 0;
-    
-    
-    //allocating space for temporary chain array
-    ResizingArray<string> **tempChainArray = new ResizingArray<string> *[chainArraySize];
-    for(int i = 0; i < chainArraySize; i++){
-        tempChainArray[i] = new ResizingArray<string>;
-    }
-
-    while(inputText >> word){
-        
-        
-        char *ptrToPass = word;
-        simplifyWord(ptrToPass);
-        
-        hashValue = calculateCubedHashValue(word, chainArraySize);
-
-        tempChainArray[hashValue]->Push(word);
-    }
-
-
-    auto stop = high_resolution_clock::now();
-    auto duration = duration_cast<milliseconds>(stop - start);
-    inputText.close();
-
-    for(int i = 0; i < 100; i++){
-        delete tempChainArray[i];
-    }
-    delete [] tempChainArray;
-
-    return duration.count();
-
-}
-
-
-
-
-
-
-
-
-
-
-int Hashing::readInFile(int hashFunctionType){
-    ifstream inputText("A Scandal In Bohemia.txt");
-    char word[50];
-    
-    int hashValue = 0;
-    bool stringPlaced = false;
-
-    //when file reads in this string it will then switch from chaining to linear probing
-    string stopString = "VII.";
-
-    //allocating space for temporary chain array
-    ResizingArray<string> **tempChainArray = new ResizingArray<string> *[101];
-    for(int i = 0; i < 101; i++){
-        tempChainArray[i] = new ResizingArray<string>;
-    }
-
-    //allocating space for temporary linear probing array
-    string ** tempLinProbingArray = new string*[80000];
-    for(int i = 0; i < 80000; i++){
-        tempLinProbingArray[i] = nullptr;
-    }
-
-
-    //starting timer
-    auto start = high_resolution_clock::now();
-
-    //going through works 1-6, and storing it using chaining
-    while(inputText >> word){
-        if(word == stopString) break;
-        
-        
-        
-        
-        char *ptrToPass = word;
-        simplifyWord(ptrToPass);
-        if(hashFunctionType == 1) hashValue = calculateSimpleHashValue(word, 101);
-        else if(hashFunctionType == 2) hashValue = calculateBetterHashValue(word, 101);
-        else hashValue = calculateCubedHashValue(word, 101);
-
-        tempChainArray[hashValue]->Push(word);
-    }
-    //cout << endl;
-
-    
-
-
-    
-
-    //goes through works 7-12 and stores using linear probing
-    while(inputText >> word){
-        
-        
-        char *ptrToPass = word;
-        simplifyWord(ptrToPass);
-        if(hashFunctionType == 1) hashValue = calculateSimpleHashValue(word, 80000);
-        else if(hashFunctionType == 2) hashValue = calculateBetterHashValue(word, 80000);
-        else hashValue = calculateCubedHashValue(word, 80000);
-        stringPlaced = false;
-        while(!stringPlaced){
-            if(tempLinProbingArray[hashValue] == nullptr){
-                tempLinProbingArray[hashValue] = new string(word);
-                stringPlaced = true;
-            }
-            else{
-                if(hashValue == 79999)
-                    hashValue = 0;
-                else hashValue++;
-            }
-        }
-        
-    }
-    inputText.close();
-
-    auto stop = high_resolution_clock::now();
-    auto duration = duration_cast<milliseconds>(stop - start);
-
-
-    for(int i = 0; i < 100; i++){
-        delete tempChainArray[i];
-    }
-    delete [] tempChainArray;
-
-    for(int i = 0; i < 80000; i++){
-        delete tempLinProbingArray[i];
-    }
-    delete [] tempLinProbingArray;
-
-    return duration.count();
-}
-
-void Hashing::testHashFunctions(){
-
-    cout << "Hash Function 1 took: " << readInFile(1) << " milliseconds" << endl;
-    cout << "Hash Function 2 took: " << readInFile(2) << " milliseconds" << endl;
-    cout << "Hash Function 3 took: " << readInFile(3) << " milliseconds" << endl;
-    
-}
-
-
 
 #endif
