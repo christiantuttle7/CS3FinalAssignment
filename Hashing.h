@@ -166,7 +166,7 @@ Hashing::Hashing()
     string stopString = "VII.";
     string stopStringTwo = "IX.";
 
-    hashFunctionType = 2;
+    hashFunctionType = 3;
     chainArraySize = 10000;
     probingArraySize = 160000;
 
@@ -208,10 +208,12 @@ Hashing::Hashing()
     }
 
     // stopping timer that keeps track of Works I -VI read in time
-    auto stopTwo = high_resolution_clock::now();
-    auto durationChaining = duration_cast<milliseconds>(stopTwo - startOne);
+    auto stopOne = high_resolution_clock::now();
+    auto durationChaining = duration_cast<milliseconds>(stopOne - startOne);
 
     readInTimeChaining = durationChaining.count();
+
+    auto startTwo = high_resolution_clock::now();
 
     // cant forget to process "VII." in linear probing
     simplifyWord(word);
@@ -237,12 +239,11 @@ Hashing::Hashing()
     }
     numWords++;
 
-    // goes through works 7-12 and stores using linear probing
+    // goes through works 7-8 and stores using linear probing, stops at work 9 to start rolling hash
     while (inputText >> word)
     {
         if (word == stopStringTwo)
         {
-            cout << numWords;
             break;
         }
         numWords++;
@@ -276,6 +277,11 @@ Hashing::Hashing()
         }
     }
 
+    //
+    auto stopTwo = high_resolution_clock::now();
+    
+    
+
     // Asking the user for up to 8 keys
     char userInput[8][50];
     int numKeys = 0;
@@ -283,14 +289,14 @@ Hashing::Hashing()
     while (numKeys < 8)
     {
         cout << "Key " << numKeys + 1 << ": ";
-        cin >> userInput[numKeys];
-        cin.ignore();
+        cin.get(userInput[numKeys], 50);
+        cin.ignore(10000, '\n');
         if (strcmp(userInput[numKeys], "@@@") == 0)
             break;
         numKeys++;
     }
 
-    const int base = 256;   // ASCII base
+    const int base = 10;  
     const int prime = 1001; // A small prime number for modulus
 
     int m[numKeys];
@@ -304,6 +310,7 @@ Hashing::Hashing()
 
     int position = 0;
 
+    //initializing all variables used in rolling hash
     for (int i = 0; i < numKeys; i++)
     {
         m[i] = strlen(userInput[i]);
@@ -320,11 +327,21 @@ Hashing::Hashing()
 
 
     word[0] = '\0';
-    int currentWordIndex = 0;
+    char uncleanWord[50];
+
+
+    //start linear pobing array again
+    auto startThree = high_resolution_clock::now();
+    
+
+
 
 
     while (inputText >> word)
     {
+
+        strcpy(uncleanWord, word);
+        
 
         if (simplifyWord(word))
             numSentences++;
@@ -355,14 +372,23 @@ Hashing::Hashing()
             }
         }
 
-        for (int r = 0; r < strlen(word); r++)
+        //add a space to the end of the wore
+        int wordLen = strlen(uncleanWord);
+        uncleanWord[wordLen] = ' ';
+        uncleanWord[wordLen + 1] = '\0';
+        wordLen++;
+
+        //goes through every character in the word
+        for (int r = 0; r < strlen(uncleanWord); r++)
         {
+            //goes through every key provided from user
             for (int i = 0; i < numKeys; i++)
             {
+                //if the not enouh 
                 if (charsInWindow[i] < m[i])
                 {
                     // building the initial window
-                    rollingWindow[i][charsInWindow[i]++] = word[r];
+                    rollingWindow[i][charsInWindow[i]++] = uncleanWord[r];
 
                     if (charsInWindow[i] == m[i])
                     {
@@ -378,9 +404,9 @@ Hashing::Hashing()
 
                 for (int j = 0; j < m[i] - 1; j++)
                     rollingWindow[i][j] = rollingWindow[i][j + 1];
-                rollingWindow[i][m[i] - 1] = word[r];
+                rollingWindow[i][m[i] - 1] = uncleanWord[r];
 
-                windowHash[i] = (base * (windowHash[i] - outgoingChar * h[i]) + word[r]) % prime;
+                windowHash[i] = (base * (windowHash[i] - outgoingChar * h[i]) + uncleanWord[r]) % prime;
                 if (windowHash[i] < 0)
                     windowHash[i] += prime;
 
@@ -395,16 +421,22 @@ Hashing::Hashing()
             position++;
         }
     }
+    //stop linear probing timer and calculate it
+    auto stopThree = high_resolution_clock::now();
+    auto durationProbing = duration_cast<milliseconds>((stopTwo - startTwo) + (stopThree - startThree));
+    readInTimeProbing = durationProbing.count();
+
 
     for (int i = 0; i < numKeys; i++)
     {
         cout << "Total matches found: " << matchCount[i] << endl;
     }
 
-    auto stopOne = high_resolution_clock::now();
-    auto durationOne = duration_cast<milliseconds>(stopOne - startOne);
+    
+    readInTime = durationChaining.count() + durationProbing.count();
 
-    readInTime = durationOne.count();
+
+    
     findOccurences();
 
     inputText.close();
