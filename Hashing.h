@@ -47,8 +47,6 @@ public:
     Hashing();
     ~Hashing();
 
-    
-
     // This will take in a word and remove the punctuation as well as lowercase everything
     // We can then calculate hash function push it to the linear probing or chaining array
     bool simplifyWord(char *);
@@ -136,16 +134,17 @@ int Hashing::calculateCubedHashValue(char wordToCompute[], int modNum)
 bool Hashing::simplifyWord(char *wordToSimplify)
 {
     int currentValue = 0;
-    bool isSentence= false;
+    bool isSentence = false;
     char currentChar;
     for (int i = 0; wordToSimplify[i] != '\0'; ++i)
     {
         currentChar = wordToSimplify[i];
-        if (isalpha(currentChar) || (currentChar == '-' && (wordToSimplify[i-1] != '-' && wordToSimplify[i+1] != '-')))
+        if (isalpha(currentChar) || (currentChar == '-'))
         {
             wordToSimplify[currentValue++] = tolower(wordToSimplify[i]);
         }
-        if (currentChar == '.' || currentChar == '!' || currentChar == '?')  isSentence = true;
+        if (currentChar == '.' || currentChar == '!' || currentChar == '?')
+            isSentence = true;
     }
     wordToSimplify[currentValue] = '\0';
 
@@ -193,11 +192,11 @@ Hashing::Hashing()
     {
         if (word == stopString)
             break;
-        
 
         numWords++;
 
-        if(simplifyWord(word)) numSentences++;
+        if (simplifyWord(word))
+            numSentences++;
         if (hashFunctionType == 1)
             hashValue = calculateSimpleHashValue(word, chainArraySize);
         else if (hashFunctionType == 2)
@@ -241,9 +240,17 @@ Hashing::Hashing()
     // goes through works 7-12 and stores using linear probing
     while (inputText >> word)
     {
-        
+        if (word == stopStringTwo)
+        {
+            cout << numWords;
+            break;
+        }
         numWords++;
-        if(simplifyWord(word)) numSentences++;
+        // removing all puncutation from a word and lowercasing it, also finding out if a sentence may have occured
+        if (simplifyWord(word))
+            numSentences++;
+
+        // calculating hash value
         if (hashFunctionType == 1)
             hashValue = calculateSimpleHashValue(word, probingArraySize);
         else if (hashFunctionType == 2)
@@ -252,49 +259,151 @@ Hashing::Hashing()
             hashValue = calculateCubedHashValue(word, probingArraySize);
 
         stringPlaced = false;
+
+        // Tries to find a place for the word to be placed
         while (!stringPlaced)
         {
+            // if the index is empty, place word
             if (linProbingArray[hashValue] == nullptr)
             {
                 linProbingArray[hashValue] = new string(word);
                 stringPlaced = true;
             }
-            else
+            else // if the index is taken, try the next one over (linear probing)
             {
-
                 hashValue = (hashValue + 1) % probingArraySize;
             }
         }
-        // cout << word << hashValue << endl;
     }
 
-    /*
-
-    int numberOfInputs  = 0;
-    char inputArray[8][50];
-    cout << "Enter up to 8 keys: " << endl;
-    for(int i = 0; i < 8; i++){
-        cin >> inputArray[i];
-        if(inputArray[i][0] == '@' && inputArray[i][1] == '@' && inputArray[i][2] == '@') break;
+    // Asking the user for up to 8 keys
+    char userInput[8][50];
+    int numKeys = 0;
+    cout << "Enter up to 8 keys (type '@@@' to stop):" << endl;
+    while (numKeys < 8)
+    {
+        cout << "Key " << numKeys + 1 << ": ";
+        cin >> userInput[numKeys];
+        cin.ignore();
+        if (strcmp(userInput[numKeys], "@@@") == 0)
+            break;
+        numKeys++;
     }
 
-    //going over work IX
-    char currentChar;
-    int numChars = 0;
-    int currentCharNum;
+    const int base = 256;   // ASCII base
+    const int prime = 1001; // A small prime number for modulus
+
+    int m[numKeys];
+
+    int keyHash[numKeys];
+    int windowHash[numKeys];
+    int h[numKeys];
+    char rollingWindow[numKeys][100];
+    int charsInWindow[numKeys];
+    int matchCount[numKeys];
+
+    int position = 0;
+
+    for (int i = 0; i < numKeys; i++)
+    {
+        m[i] = strlen(userInput[i]);
+        keyHash[i] = 0;
+        windowHash[i] = 0;
+        h[i] = 1;
+        charsInWindow[i] = 0;
+        matchCount[i] = 0;
+        for (int j = 0; j < m[i] - 1; j++)
+            h[i] = (h[i] * base) % prime;
+        for (int j = 0; j < m[i]; j++)
+            keyHash[i] = (base * keyHash[i] + userInput[i][j]) % prime;
+    }
+
+
     word[0] = '\0';
+    int currentWordIndex = 0;
 
-    while(inputText.get(currentChar)){
-        cout << "Hello" << endl;
+
+    while (inputText >> word)
+    {
+
+        if (simplifyWord(word))
+            numSentences++;
+        numWords++;
+
+        // calculating hash value
+        if (hashFunctionType == 1)
+            hashValue = calculateSimpleHashValue(word, probingArraySize);
+        else if (hashFunctionType == 2)
+            hashValue = calculateBetterHashValue(word, probingArraySize);
+        else
+            hashValue = calculateCubedHashValue(word, probingArraySize);
+
+        stringPlaced = false;
+
+        // Tries to find a place for the word to be placed
+        while (!stringPlaced)
+        {
+            // if the index is empty, place word
+            if (linProbingArray[hashValue] == nullptr)
+            {
+                linProbingArray[hashValue] = new string(word);
+                stringPlaced = true;
+            }
+            else // if the index is taken, try the next one over (linear probing)
+            {
+                hashValue = (hashValue + 1) % probingArraySize;
+            }
+        }
+
+        for (int r = 0; r < strlen(word); r++)
+        {
+            for (int i = 0; i < numKeys; i++)
+            {
+                if (charsInWindow[i] < m[i])
+                {
+                    // building the initial window
+                    rollingWindow[i][charsInWindow[i]++] = word[r];
+
+                    if (charsInWindow[i] == m[i])
+                    {
+                        windowHash[i] = 0;
+                        for (int j = 0; j < m[i]; j++)
+                            windowHash[i] = (base * windowHash[i] + rollingWindow[i][j]) % prime;
+                    }
+                    continue;
+                }
+
+                // Rolling case
+                char outgoingChar = rollingWindow[i][0]; // SAVE this BEFORE shift
+
+                for (int j = 0; j < m[i] - 1; j++)
+                    rollingWindow[i][j] = rollingWindow[i][j + 1];
+                rollingWindow[i][m[i] - 1] = word[r];
+
+                windowHash[i] = (base * (windowHash[i] - outgoingChar * h[i]) + word[r]) % prime;
+                if (windowHash[i] < 0)
+                    windowHash[i] += prime;
+
+                if (windowHash[i] == keyHash[i] &&
+                    strncmp(rollingWindow[i], userInput[i], m[i]) == 0)
+                {
+                    cout << "Match found for key " << i + 1
+                         << " at position " << (position - m[i] + 1) << endl;
+                    matchCount[i]++;
+                }
+            }
+            position++;
+        }
     }
 
+    for (int i = 0; i < numKeys; i++)
+    {
+        cout << "Total matches found: " << matchCount[i] << endl;
+    }
 
-    */
-
-    // cout << "Number of words: " << numWords << endl;
     auto stopOne = high_resolution_clock::now();
     auto durationOne = duration_cast<milliseconds>(stopOne - startOne);
-    cout << "Initial Read in took: " << durationOne.count() << " milliseconds" << endl;
+
     readInTime = durationOne.count();
     findOccurences();
 
@@ -421,12 +530,11 @@ void Hashing::findOccurences()
             }
         }
     }
-    //finding time it took to find all occurences
+    // finding time it took to find all occurences
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
     cout << "Occurences took: " << duration.count() << " milliseconds" << endl;
     findOccurencesTime = duration.count();
-
 
     start = high_resolution_clock::now();
 
@@ -460,23 +568,19 @@ void Hashing::findOccurences()
         }
     }
 
-
-
-
-    //finding time it took to sort the occurences
+    // finding time it took to sort the occurences
     stop = high_resolution_clock::now();
     duration = duration_cast<milliseconds>(stop - start);
     cout << "Occurences took: " << duration.count() << " milliseconds" << endl;
     sortOccurencesTime = duration.count();
 
     cout << "Unique words: " << uniqueSize << endl;
-    
 }
 
 void Hashing::printTopEighty()
 {
     ofstream outputTop80("top80.txt");
-    
+
     outputTop80 << "80 Top Occuring Words: " << endl;
     for (int i = uniqueSize - 1; i >= uniqueSize - 80; i--)
     {
@@ -512,7 +616,7 @@ int Hashing::promptUser()
 }
 
 void Hashing::printReport()
-{   
+{
     cout << "\nHASHING REPORT - All Times in Milliseconds\n";
     cout << "-------------------------------------------\n";
     cout << "Number of Words:              " << numWords << "\n";
